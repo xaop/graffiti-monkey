@@ -28,24 +28,14 @@ log = logging.getLogger(__name__)
 
 
 class GraffitiMonkeyCli(object):
-    def __init__(self):
-        self.region = None
+    def __init__(self, r, c):
+        self.region = r
         self.profile = None
         self.monkey = None
         self.args = None
-        self.config = {"_instance_tags_to_propagate": ['Name'],
-                       "_volume_tags_to_propagate": ['Name', 'instance_id', 'device'],
-                       "_volume_tags_to_be_set": [],
-                       "_snapshot_tags_to_be_set": [],
-                       "_instance_filter": [],
-                       }
+        self.config = c
         self.dryrun = False
         self.append = False
-        self.volumes = None
-        self.snapshots = None
-        self.instancefilter = None
-        self.novolumes = False
-        self.nosnapshots = False
 
     @staticmethod
     def _fail(message="Unknown failure", code=1):
@@ -75,14 +65,6 @@ class GraffitiMonkeyCli(object):
                             help='dryrun only, display tagging actions but do not perform them')
         parser.add_argument('--append', action='store_true',
                             help='append propagated tags to existing tags (up to a total of ten tags)')
-        parser.add_argument('--volumes', action='append',
-                            help='volume-ids to tag')
-        parser.add_argument('--snapshots', action='append',
-                            help='snapshot-ids to tag'),
-        parser.add_argument('--novolumes', action='store_true',
-                            help='do not perform volume tagging')
-        parser.add_argument('--nosnapshots', action='store_true',
-                            help='do not perform snapshot tagging')
         self.args = parser.parse_args(self.get_argv())
 
     @staticmethod
@@ -91,29 +73,12 @@ class GraffitiMonkeyCli(object):
                           "Make sure to use valid yaml syntax. "
                           "Also the start of the file should not be marked with '---'.", 6)
 
-    def set_config(self):
-        if self.args.config:
-            try:
-                import yaml
-            except:
-                log.error("When the config parameter is used, you need to have the python PyYAML library.")
-                log.error("It can be installed with pip `pip install PyYAML`.")
-                sys.exit(5)
-
-            try:
-                #TODO: take default values and these can be overwritten by config
-                self.config = yaml.load(self.args.config)
-                if self.config is None:
-                    self.fail_due_to_bad_config_file()
-            except:
-                self.fail_due_to_bad_config_file()
+        
 
 
 
     def set_region(self):
-        if self.args.region:
-            self.region = self.args.region
-        elif "region" in self.config.keys():
+        if "region" in self.config.keys():
             self.region = self.config["region"]
         else:
             # If no region was specified, assume this is running on an EC2 instance
@@ -128,86 +93,40 @@ class GraffitiMonkeyCli(object):
         log.debug("Running in region: %s", self.region)
 
     def set_profile(self):
-        if self.args.profile:
-            self.profile = self.args.profile
-        elif "profile" in self.config.keys():
+        if "profile" in self.config.keys():
             self.profile = self.config["profile"]
         else:
             self.profile = 'default'
         log.debug("Using profile: %s", self.profile)
 
     def set_dryrun(self):
-        self.dryrun = self.args.dryrun
+        self.dryrun = False
 
     def set_append(self):
-        self.append = self.args.append
-
-    def set_volumes(self):
-        if self.args.volumes:
-            self.volumes = self.args.volumes
-        elif "_volumes_to_tag" in self.config.keys():
-            self.volumes = self.config["_volumes_to_tag"]
-
-    def set_snapshots(self):
-        if self.args.snapshots:
-            self.snapshots = self.args.snapshots
-        elif "_snapshots_to_tag" in self.config.keys():
-            self.snapshots = self.config["_snapshots_to_tag"]
-
-    def set_instancefilter(self):
-        if "_instance_filter" in self.config.keys():
-            self.instancefilter = self.config["_instance_filter"]
-
-    def set_novolumes(self):
-        self.novolumes = self.args.novolumes
-
-    def set_nosnapshots(self):
-        self.nosnapshots = self.args.nosnapshots
-
-    def config_default(self, key):
-        default_value = list()
-        value = self.config.get(key)
-        return value if value is not None else default_value
+        self.append = False
 
     def initialize_monkey(self):
         self.monkey = GraffitiMonkey(self.region,
                                      self.profile,
                                      self.config["_instance_tags_to_propagate"],
                                      self.config["_volume_tags_to_propagate"],
-                                     self.config_default("_volume_tags_to_be_set"),
-                                     self.config_default("_snapshot_tags_to_be_set"),
                                      self.dryrun,
-                                     self.append,
-                                     self.volumes,
-                                     self.snapshots,
-                                     self.instancefilter,
-                                     self.novolumes,
-                                     self.nosnapshots
-                                     )
+                                     self.append)
+
 
     def start_tags_propagation(self):
         self.monkey.propagate_tags()
 
     def exit_succesfully(self):
         log.info('Graffiti Monkey completed successfully!')
-        sys.exit(0)
 
     def run(self):
-        self.set_cli_args()
 
-        Logging().configure(self.args.verbose)
-        log.debug("CLI parse args: %s", self.args)
+        Logging().configure(False)
 
-        self.set_config()
-        self.set_region()
         self.set_profile()
         self.set_dryrun()
         self.set_append()
-        self.set_volumes()
-        self.set_snapshots()
-        self.set_instancefilter()
-        self.set_novolumes()
-        self.set_nosnapshots()
 
         try:
             self.initialize_monkey()
@@ -219,6 +138,6 @@ class GraffitiMonkeyCli(object):
         self.exit_succesfully()
 
 
-def run():
-    cli = GraffitiMonkeyCli()
+def run(r,c):
+    cli = GraffitiMonkeyCli(r,c)
     cli.run()

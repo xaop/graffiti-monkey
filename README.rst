@@ -1,5 +1,10 @@
 Graffiti Monkey
 ===============
+Adaptations
+-----
+Currently modified for using it in combination with Lambda's, CLI doesn't work with this fork.
+
+-----
 
 .. image:: https://badges.gitter.im/Join%20Chat.svg
    :alt: Join the chat at https://gitter.im/Answers4AWS/graffiti-monkey
